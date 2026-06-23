@@ -1,109 +1,225 @@
-# Pulseboard
+# openfit
 
-Pulseboard è un client desktop Electron in dark mode per i dati di Google Fitbit Air e degli altri dispositivi Fitbit. L’interfaccia è adattiva e a divulgazione progressiva: mette in primo piano poche informazioni utili e mostra viste, metriche e navigazione soltanto quando Google Health restituisce dati reali.
+openfit is a private, desktop-first Electron dashboard for Google Fitbit Air and other Fitbit devices. Its adaptive interface prioritizes a small set of useful insights and only displays views, metrics, and navigation when Google Health returns real data.
 
-Il renderer usa React, shadcn/Radix, Tailwind CSS v4, assistant-ui, Inter Variable, JetBrains Mono e le icone ufficiali Nucleo Essential Outline.
+The renderer uses React, shadcn/Radix, Tailwind CSS v4, assistant-ui, Inter Variable, JetBrains Mono, and Nucleo Essential Outline icons.
 
-> Stato del progetto: implementazione completa e buildabile. La modalità demo funziona subito; per i dati personali serve configurare un client OAuth nel proprio progetto Google Cloud.
+> Project status: the application is complete and buildable. Demo mode works without configuration. Accessing personal data requires an OAuth client in your own Google Cloud project.
 
-## La connessione reale con Fitbit Air
+## How Fitbit data reaches openfit
 
-Fitbit Air **non espone una sincronizzazione Bluetooth pubblica** alle app di terze parti. Il percorso supportato è:
+Fitbit Air does **not provide a public Bluetooth synchronization interface** for third-party applications. The supported data path is:
 
 ```text
-Fitbit Air → Bluetooth → app Google Health/Fitbit sul telefono
-                         ↓ sincronizzazione cloud
-                 Google Health API → Pulseboard
+Fitbit Air -> Bluetooth -> Fitbit/Google Health mobile app
+                                  |
+                                  v cloud sync
+                         Google Health API -> openfit
 ```
 
-Pulseboard usa quindi la nuova **Google Health API v4** come provider predefinito. Il vecchio Fitbit Web API rimane disponibile solo come adapter di transizione: Google ne prevede la dismissione a settembre 2026.
+openfit uses **Google Health API v4** as its default provider. The legacy Fitbit Web API remains available only as a transitional adapter and is scheduled for deprecation in September 2026.
 
-L’app desktop può sostituire l’esperienza di consultazione e analisi, ma non il primo pairing hardware, gli aggiornamenti firmware o la sincronizzazione telefono-braccialetto.
+The desktop application can replace the browsing and analysis experience, but it cannot perform initial device pairing, firmware updates, or phone-to-device synchronization.
 
-## Avvio rapido
+## Quick start
 
-Requisiti: Node.js 22+ e npm 10+. Per la chat laterale servono anche Codex Desktop installato e un account Codex già collegato; Pulseboard riusa il login locale senza richiedere una API key.
+Requirements:
+
+- Node.js 22 or later;
+- npm 10 or later;
+- Codex Desktop and a signed-in Codex account, only if you want to use the health assistant. openfit reuses the local login and does not require an API key.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Comandi utili:
+Useful commands:
 
 ```bash
-npm run build       # type-check + bundle renderer
-npm test            # test normalizzatori e adapter
-npm run capture:ui  # QA visuale desktop/mobile tramite Chromium Electron
-npm run dist        # pacchetti macOS, Windows o Linux
+npm run build       # Type-check and bundle the renderer
+npm test            # Run normalizer and adapter tests
+npm run capture:ui  # Run desktop/mobile visual QA in Electron Chromium
+npm run dist        # Package the app for macOS, Windows, or Linux
 ```
 
-Il pacchetto locale generato in `release/` non è firmato se nel Keychain non è presente un certificato Apple Developer ID. Per una distribuzione pubblica segui la [checklist release](docs/RELEASE.md).
+Packages generated locally in `release/` are unsigned unless an Apple Developer ID certificate is available in the Keychain. For public distribution, follow the [release checklist](docs/RELEASE.md).
 
-## Collegare Google Health
+## Connect Google Health
 
-1. Abilita **Google Health API** nel tuo progetto Google Cloud.
-2. Crea un OAuth Client ID di tipo **Web application**.
-3. Registra esattamente questo redirect URI:
+### Before you begin
+
+You need:
+
+- the Google account used by the Fitbit mobile app;
+- access to [Google Cloud Console](https://console.cloud.google.com/);
+- Fitbit Air or another supported tracker already paired and synchronized with the Fitbit app;
+- openfit running with `npm run dev` or as an installed desktop application.
+
+API configuration, OAuth consent, and OAuth credentials must all belong to the same Google Cloud project.
+
+### 1. Create a Google Cloud project
+
+1. Open [Create a Google Cloud project](https://console.cloud.google.com/projectcreate).
+2. Name the project `openfit`.
+3. For a personal account, leave **Organization** set to **No organization**.
+4. Create the project and select it from the project picker.
+
+### 2. Enable Google Health API
+
+1. With the openfit project selected, open [Google Health API](https://console.cloud.google.com/apis/library/health.googleapis.com).
+2. Click **Enable**.
+3. Wait until the page shows that the API is enabled or displays **Manage**.
+
+### 3. Configure the OAuth consent screen
+
+1. Open [Google Auth Platform](https://console.cloud.google.com/auth/overview) and click **Get started**.
+2. Set the application name to `openfit` and enter a support email.
+3. Select **External** as the audience. **Internal** only supports accounts in the same Google Workspace organization.
+4. Enter a contact email and complete the setup.
+5. Open [Audience](https://console.cloud.google.com/auth/audience), add the Google account used by Fitbit as a test user, and save it.
+
+While the application remains in OAuth testing mode, only explicitly listed test users can authorize it. Google normally expires refresh tokens for external applications in testing after seven days; reconnect the account when needed or complete Google's production requirements.
+
+### 4. Add read-only scopes
+
+Open [Google Auth Platform scopes](https://console.cloud.google.com/auth/scopes), choose **Add or remove scopes**, and add these read-only Google Health scopes:
+
+```text
+https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly
+https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly
+https://www.googleapis.com/auth/googlehealth.ecg.readonly
+https://www.googleapis.com/auth/googlehealth.irn.readonly
+https://www.googleapis.com/auth/googlehealth.location.readonly
+https://www.googleapis.com/auth/googlehealth.nutrition.readonly
+https://www.googleapis.com/auth/googlehealth.profile.readonly
+https://www.googleapis.com/auth/googlehealth.settings.readonly
+https://www.googleapis.com/auth/googlehealth.sleep.readonly
+```
+
+Do not add write scopes. openfit also requests the standard `openid` and `profile` scopes to display the account name and avatar.
+
+### 5. Create the OAuth client
+
+1. Open [Google Auth Platform clients](https://console.cloud.google.com/auth/clients).
+2. Create an OAuth client of type **Web application**.
+3. Name it `openfit Desktop`.
+4. Leave **Authorized JavaScript origins** empty.
+5. Add this exact **Authorized redirect URI**:
 
    ```text
    http://127.0.0.1:42813/oauth/callback
    ```
 
-4. Aggiungi il tuo account Google fra i test user.
-5. Aggiungi gli scope Google Health in sola lettura elencati in [docs/GOOGLE_HEALTH_SETUP.md](docs/GOOGLE_HEALTH_SETUP.md).
-6. In Pulseboard scegli **Collega Fitbit**, incolla Client ID e Client Secret, poi completa il consenso nel browser di sistema.
+6. Create the client and retain its Client ID and Client Secret.
 
-Client Secret, token e cache salute sono gestiti nel processo main e cifrati con `safeStorage` (Keychain su macOS, Credential Manager su Windows, secret store disponibile su Linux). Nulla viene inserito nel renderer o nel repository.
+Do not commit or share these credentials. During authorization, openfit starts a temporary loopback server on port `42813`, validates OAuth `state` and PKCE, receives the authorization code, and then closes the server.
 
-## Struttura
+### 6. Connect openfit
+
+1. Start openfit.
+2. Click **Connect Fitbit** and select **Google Health**.
+3. Paste the Client ID and Client Secret.
+4. Confirm that the callback URL is `http://127.0.0.1:42813/oauth/callback`.
+5. Click **Save and connect**.
+6. In the system browser, select the same Google account that you added as a test user and approve the requested access.
+7. Return to openfit. The first synchronization starts automatically.
+
+The connection is working when openfit shows **Google Health** instead of **Demo mode**, displays a last synchronization time, and begins showing real device and health metrics. Metric availability depends on the device, region, granted consent, and recent Fitbit mobile synchronization.
+
+### Security note
+
+The Client Secret, OAuth tokens, and health cache stay in Electron's main process and are encrypted with `safeStorage` using Keychain on macOS, Credential Manager on Windows, or an available secret store on Linux. They are not exposed to the renderer or written to the repository.
+
+A Client Secret distributed in a desktop binary is not a durable global secret. The current setup is appropriate for personal use and development. A public release should move the OAuth code exchange to a small backend and complete Google's verification and security-review requirements.
+
+### Troubleshooting
+
+`redirect_uri_mismatch`
+
+- Register `http://127.0.0.1:42813/oauth/callback` exactly. Do not use `localhost`, omit the path, or add a trailing slash.
+
+`Access blocked`, `access_denied`, or unauthorized user
+
+- Confirm that the OAuth audience is **External**.
+- Add the correct account under **Audience -> Test users**.
+- Sign in with the same account used by the Fitbit app.
+
+`invalid_client`
+
+- Copy the Client ID and Client Secret again from the same OAuth client.
+- Remove accidental leading or trailing spaces.
+- Do not mix credentials from different Cloud projects.
+
+HTTP 403 or API not enabled
+
+- Confirm that Google Health API is enabled in the same project as the OAuth client.
+
+Port `42813` is already in use
+
+- Close other openfit processes and retry. Only one OAuth flow can use the callback port at a time.
+
+Some metrics are missing
+
+- Open the Fitbit app on the phone and wait for the tracker to synchronize.
+- Return to openfit and click **Sync**.
+- ECG, SpO2, skin temperature, HRV, and irregular-rhythm notifications may not be available for every device, account, or country. openfit hides sections for which no data exists.
+
+For a longer checklist, see [Google Health setup](docs/GOOGLE_HEALTH_SETUP.md).
+
+## Project structure
 
 ```text
 electron/
-  main.cjs                    shell, OAuth loopback, IPC, storage cifrato
-  preload.cjs                 bridge IPC minimale e tipizzato
-  codex-service.cjs           client Codex app-server JSONL in sola lettura
-  google-health-service.cjs   provider Google Health API v4
-  fitbit-legacy-service.cjs   provider Fitbit Web API legacy + PKCE
+  main.cjs                    Electron shell, OAuth loopback, IPC, encrypted storage
+  preload.cjs                 Minimal typed IPC bridge
+  codex-service.cjs           Read-only Codex app-server JSONL client
+  google-health-service.cjs   Google Health API v4 provider
+  fitbit-legacy-service.cjs   Legacy Fitbit Web API provider with PKCE
 src/
-  components/                 viste, grafici e chat assistant-ui
-  data/                       demo e normalizzazione provider-agnostic
-  lib/                        formattazione e utility pure
-  App.tsx                     orchestrazione UI e stato connessione
-  types.ts                    contratti condivisi renderer/preload
+  components/                 Views, charts, and assistant-ui chat
+  data/                       Demo data and provider-independent normalization
+  lib/                        Formatting and pure utilities
+  App.tsx                     UI and connection-state orchestration
+  types.ts                    Shared renderer/preload contracts
 scripts/
-  capture-ui.cjs              smoke test visuale Electron
+  capture-ui.cjs              Electron visual smoke test
 docs/
-  ARCHITECTURE.md             decisioni e confini del sistema
-  DATA_COVERAGE.md            copertura dati e limiti
-  GOOGLE_HEALTH_SETUP.md      setup OAuth dettagliato
-  RELEASE.md                  firma, notarizzazione e rilascio
+  ARCHITECTURE.md             System decisions and boundaries
+  DATA_COVERAGE.md            Data coverage and limitations
+  GOOGLE_HEALTH_SETUP.md      Extended OAuth setup guide
+  RELEASE.md                  Signing, notarization, and release process
 ```
 
-L’architettura e le scelte di sicurezza sono descritte in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+See [Architecture](docs/ARCHITECTURE.md) for security boundaries and design decisions.
 
-## Principi dell’interfaccia
+## Interface principles
 
-- una metrica primaria per schermata e dettagli secondari in ordine di importanza;
-- nessuna card vuota: le sezioni non disponibili restano nascoste;
-- un solo colore d’accento per stato, progresso e azioni;
-- campioni intraday aggregati per mantenere grafici fluidi senza alterare minimo, massimo o valore più recente;
-- componenti accessibili shadcn/Radix e layout responsive senza overflow orizzontale.
+- one primary metric per screen, with secondary details ordered by importance;
+- no empty cards: unavailable sections remain hidden;
+- one accent color for status, progress, and actions;
+- aggregated intraday samples for responsive charts without changing minimum, maximum, or latest values;
+- accessible shadcn/Radix components and responsive layouts without horizontal overflow.
 
 ## Health assistant
 
-Il pulsante chat nella top bar apre un pannello destro basato sui primitive di assistant-ui. Le risposte AI sono testo libero, senza bubble. Il bridge usa `codex app-server`, la stessa interfaccia locale dei client Codex, con sandbox read-only, approvazioni disabilitate e tool negati per default.
+The chat button in the top bar opens a right-side panel built with assistant-ui primitives. Its bridge uses `codex app-server`, the same local interface used by Codex clients, with a read-only sandbox, approvals disabled, and tool calls denied by default.
 
-Quando invii un messaggio, Pulseboard prepara un contesto compatto con metriche normalizzate, date disponibili e dettaglio del giorno selezionato. Non include credenziali OAuth o file cifrati. Quel contesto viene inviato a Codex/OpenAI per generare la risposta; non viene inviato finché non usi la chat. Codex può anche aprire una vista o una data di Pulseboard, ma non può modificare i dati health.
+When you send a message, openfit creates a compact context containing normalized metrics, available dates, and details for the selected day. It does not include OAuth credentials or encrypted files. This context is sent to Codex/OpenAI only after you use the chat. Codex may navigate to an openfit view or date, but it cannot modify health data.
 
-## Fonti ufficiali
+No Codex model name is hard-coded in this repository. The app-server selects its configured default model unless a model is supplied programmatically through the service options.
 
-- [Google Health API: migrazione da Fitbit Web API](https://developers.google.com/health/migration)
-- [Google Health API: tipi di dati](https://developers.google.com/health/data-types)
-- [Google Health API: OAuth e Google Cloud](https://developers.google.com/health/setup)
-- [Google Health API: endpoint](https://developers.google.com/health/endpoints)
-- [Fitbit OAuth 2.0 + PKCE](https://dev.fitbit.com/build/reference/web-api/developer-guide/authorization/)
+## Official references
 
-Icone: Nucleo Essential Outline © Nucleo, usate secondo i [termini Nucleo](https://nucleoapp.com/license/).
+- [Google Health API: Cloud and OAuth setup](https://developers.google.com/health/setup)
+- [Google Health API: scopes](https://developers.google.com/health/scopes)
+- [Google Health API: migration from Fitbit Web API](https://developers.google.com/health/migration)
+- [Google Health API: data types](https://developers.google.com/health/data-types)
+- [Google Health API: endpoints](https://developers.google.com/health/endpoints)
+- [Google OAuth for web-server applications](https://developers.google.com/identity/protocols/oauth2/web-server)
+- [Google OAuth for installed applications](https://developers.google.com/identity/protocols/oauth2/native-app)
+- [Fitbit OAuth 2.0 with PKCE](https://dev.fitbit.com/build/reference/web-api/developer-guide/authorization/)
 
-I dati mostrati non costituiscono diagnosi o consiglio medico.
+Icons: Nucleo Essential Outline (c) Nucleo, used under the [Nucleo license](https://nucleoapp.com/license/).
+
+The information displayed by openfit is not a diagnosis or medical advice.
