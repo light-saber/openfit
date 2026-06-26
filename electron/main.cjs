@@ -96,9 +96,12 @@ function publicStatus() {
   const config = credentials.config || {}
   const provider = PROVIDERS[config.provider] ? config.provider : 'google-health'
   const needsSecret = provider === 'google-health'
+  const isUltrahuman = provider === 'ultrahuman'
   return {
     isElectron: true,
-    configured: Boolean(config.clientId && config.redirectUri && (!needsSecret || config.clientSecret)),
+    configured: isUltrahuman
+      ? Boolean(credentials.token?.access_token)
+      : Boolean(config.clientId && config.redirectUri && (!needsSecret || config.clientSecret)),
     connected: Boolean(credentials.token?.access_token || credentials.token?.refresh_token),
     clientId: config.clientId || '',
     redirectUri: config.redirectUri || DEFAULT_REDIRECT_URI,
