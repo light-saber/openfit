@@ -1,11 +1,11 @@
 {
-  "name": "pulseboard-fitbit-desktop",
+  "name": "openfit-ultrahuman",
   "version": "1.0.0",
-  "description": "A private, desktop-first Fitbit dashboard built with Electron.",
+  "description": "A private, desktop-first Ultrahuman Ring dashboard built with Electron.",
   "private": true,
   "main": "electron/main.cjs",
   "type": "module",
-  "author": "Pulseboard",
+  "author": "OpenFit",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=22",
@@ -21,7 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b --pretty false",
-    "check:electron": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check electron/google-health-service.cjs && node --check electron/fitbit-legacy-service.cjs && node --check electron/health-cache.cjs && node --check electron/codex-service.cjs",
+    "check:electron": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check electron/google-health-service.cjs && node --check electron/fitbit-legacy-service.cjs && node --check electron/health-cache.cjs && node --check electron/ultrahuman-service.cjs && node --check electron/minimax-service.cjs",
     "check": "npm run typecheck && npm run check:electron && npm test && npm run build",
     "capture:ui": "electron scripts/capture-ui.cjs",
     "dist": "npm run build && electron-builder"
@@ -58,8 +58,8 @@
     "wait-on": "9.0.10"
   },
   "build": {
-    "appId": "com.pulseboard.fitbit",
-    "productName": "Pulseboard",
+    "appId": "com.openfit.ultrahuman",
+    "productName": "OpenFit Ultrahuman",
     "icon": "build/icon.png",
     "files": [
       "dist/**/*",
