@@ -5,7 +5,7 @@
   "private": true,
   "main": "electron/main.cjs",
   "type": "module",
-  "author": "OpenFit",
+  "author": { "name": "OpenFit", "email": "openfit@example.com" },
   "license": "UNLICENSED",
   "engines": {
     "node": ">=22",
