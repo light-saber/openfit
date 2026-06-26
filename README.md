@@ -4,6 +4,16 @@ A private, desktop-first Electron dashboard for the **Ultrahuman Ring** (via the
 
 > This is a personal fork of [FlavioAdamo/openfit](https://github.com/FlavioAdamo/openfit), rebuilt around the Ultrahuman Ring instead of Google Fitbit/Health. All credit for the original dashboard architecture, data normalization layer, and Electron scaffolding belongs to the upstream authors.
 
+## Screenshots
+
+**Today** — overview of movement, sleep, and resting heart rate, with per-hour step activity, sleep stages and score, and nightly signals (HRV):
+
+![Today dashboard](screenshots/today-dashboard.png)
+
+**Health** — cardiac and physiological signals over time: heart rate trend with resting and range markers, plus nightly metrics (HRV) and other measurements (cardio fitness, irregular-rhythm checks):
+
+![Health view](screenshots/health-view.png)
+
 ## What changed from upstream
 
 | | Original (openfit) | This fork (openfit-ultrahuman) |
@@ -61,20 +71,24 @@ electron/
   preload.cjs                 Minimal typed IPC bridge
   ultrahuman-service.cjs      UltraSignal Partner API → Fitbit Legacy format adapter
   minimax-service.cjs         HTTP adapter for MiniMax (CodexService-compatible interface)
+  codex-service.cjs           [retained from upstream]
   google-health-service.cjs   [retained from upstream]
   fitbit-legacy-service.cjs   [retained from upstream]
   health-cache.cjs            Encrypted local health cache
 src/
   components/                 Views, charts, and assistant-ui chat
-  data/                      Demo data and provider-independent normalization
-  lib/                       Formatting, health assistant, and pure utilities
-  App.tsx                    UI and connection-state orchestration
-  types.ts                   Shared renderer/preload contracts
+  data/                       Demo data and provider-independent normalization
+  hooks/                      React data-loading and state hooks
+  lib/                        Formatting, health assistant, and pure utilities
+  App.tsx                     UI and connection-state orchestration
+  types.ts                    Shared renderer/preload contracts
 docs/
   ARCHITECTURE.md
   DATA_COVERAGE.md
   GOOGLE_HEALTH_SETUP.md
+  HOME_DASHBOARD_MODEL.md
   RELEASE.md
+screenshots/                  README images
 ```
 
 ## Health assistant
