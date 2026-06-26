@@ -230,6 +230,7 @@ export interface FitbitConfigInput {
 export interface FitbitBridge {
   getStatus: () => Promise<FitbitAuthStatus>
   saveConfig: (config: FitbitConfigInput) => Promise<FitbitAuthStatus>
+  saveUltrahumanCredentials: (creds: { apiKey: string; email: string; partnerCode: string }) => Promise<FitbitAuthStatus>
   connect: () => Promise<{ ok: boolean; message?: string }>
   disconnect: () => Promise<FitbitAuthStatus>
   sync: (date: string) => Promise<RawFitbitPayload>

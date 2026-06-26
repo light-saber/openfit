@@ -944,7 +944,7 @@ export function DevicesView({ data, status }: ViewProps) {
   ].filter((item): item is string => Boolean(item))
   const isDemo = data.source === 'demo'
   const isConnected = status.connected || isDemo
-  const sourceName = isDemo ? 'Sample data' : status.provider === 'fitbit-legacy' ? 'Fitbit legacy' : 'Google Health'
+  const sourceName = isDemo ? 'Sample data' : status.provider === 'fitbit-legacy' ? 'Fitbit legacy' : status.provider === 'ultrahuman' ? 'Ultrahuman' : 'Google Health'
   const deviceName = data.device?.name ?? (isDemo ? 'Google Fitbit Air' : sourceName)
 
   return (
@@ -953,7 +953,11 @@ export function DevicesView({ data, status }: ViewProps) {
         <div className="data-source-column">
           <Panel className="device-card" category="device">
             <div className="device-visual device-product-visual">
-              <img src="/fitbit-air.png" alt="Google Fitbit Air in Obsidian" />
+              {data.source === 'ultrahuman' ? (
+                <div className="device-placeholder-ring" aria-label="Ultrahuman Ring" />
+              ) : (
+                <img src="/fitbit-air.png" alt="Google Fitbit Air in Obsidian" />
+              )}
             </div>
             <div className="device-copy">
               <Badge variant="secondary" className={`connection-badge ${isConnected ? 'is-connected' : ''}`}><span className={`status-dot ${isConnected ? 'online' : ''}`} /> {isConnected ? 'Connected' : 'Not connected'}</Badge>

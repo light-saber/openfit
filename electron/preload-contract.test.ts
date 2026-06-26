@@ -45,6 +45,7 @@ describe('preload bridge contract', () => {
     expect(new Set(Object.keys(fitbit ?? {}))).toEqual(new Set([
       'getStatus',
       'saveConfig',
+      'saveUltrahumanCredentials',
       'connect',
       'disconnect',
       'sync',
@@ -58,6 +59,7 @@ describe('preload bridge contract', () => {
 
     expect(fitbit?.getStatus()).toMatchObject({ channel: 'fitbit:get-status' })
     expect(fitbit?.saveConfig({ clientId: 'id' })).toMatchObject({ channel: 'fitbit:save-config', args: [{ clientId: 'id' }] })
+    expect(fitbit?.saveUltrahumanCredentials({ apiKey: 'key', email: 'a@b.com', partnerCode: 'CODE' })).toMatchObject({ channel: 'fitbit:save-ultrahuman-credentials', args: [{ apiKey: 'key', email: 'a@b.com', partnerCode: 'CODE' }] })
     expect(fitbit?.connect()).toMatchObject({ channel: 'fitbit:connect' })
     expect(fitbit?.disconnect()).toMatchObject({ channel: 'fitbit:disconnect' })
     expect(fitbit?.sync('2026-06-22')).toMatchObject({ channel: 'fitbit:sync', args: ['2026-06-22'] })
@@ -83,7 +85,7 @@ describe('preload bridge contract', () => {
     expect(handleSyncProgress).toHaveBeenCalledWith({ completed: 1, total: 2, key: 'steps' })
     unsubscribeSync()
     expect(removeListener).toHaveBeenCalledWith('fitbit:sync-progress', syncListener)
-    expect(invoke).toHaveBeenCalledTimes(9)
+    expect(invoke).toHaveBeenCalledTimes(10)
   })
 
   it('exposes the expected health assistant bridge methods and IPC channels', () => {

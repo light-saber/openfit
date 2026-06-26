@@ -286,7 +286,7 @@ export function normalizeFitbitData(payload: RawFitbitPayload): DashboardData {
     },
     device: device ? {
       id: device.id ? String(device.id) : null,
-      name: String(device.deviceVersion ?? device.type ?? 'Fitbit'),
+      name: String(device?.deviceVersion ?? device?.type ?? (payload.source === 'ultrahuman' ? 'Ultrahuman Ring' : 'Fitbit')),
       type: device.type ?? null,
       battery: device.battery ?? null,
       batteryLevel: numeric(device.batteryLevel),

@@ -11,6 +11,7 @@ function subscribe(channel, callback) {
 contextBridge.exposeInMainWorld('fitbit', Object.freeze({
   getStatus: () => ipcRenderer.invoke('fitbit:get-status'),
   saveConfig: (config) => ipcRenderer.invoke('fitbit:save-config', config),
+  saveUltrahumanCredentials: (creds) => ipcRenderer.invoke('fitbit:save-ultrahuman-credentials', creds),
   connect: () => ipcRenderer.invoke('fitbit:connect'),
   disconnect: () => ipcRenderer.invoke('fitbit:disconnect'),
   sync: (date) => ipcRenderer.invoke('fitbit:sync', date),

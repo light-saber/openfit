@@ -299,6 +299,20 @@ export default function App() {
   const saveAndConnect = async (config: FitbitConfigInput) => {
     if (!window.fitbit) return
     try {
+      if (config.provider === 'ultrahuman') {
+        // Ultrahuman uses direct API key — no OAuth flow
+        const nextStatus = await window.fitbit.saveUltrahumanCredentials({
+          apiKey: config.clientId, // reuse clientId field as the API key
+          email: config.redirectUri, // reuse redirectUri field as email
+          partnerCode: 'UDUCCTPQ',
+        })
+        setStatus(nextStatus)
+        setConnecting(false)
+        setSettingsOpen(false)
+        setToast({ tone: 'success', message: 'Ultrahuman connected. Syncing data…' })
+        void runSync(selectedDate)
+        return
+      }
       const nextStatus = await window.fitbit.saveConfig(config)
       setStatus(nextStatus)
       setConnecting(true)
@@ -341,7 +355,7 @@ export default function App() {
 
   const isToday = selectedDate === localIso()
   const sourceLabel = status.connected
-    ? status.provider === 'fitbit-legacy' ? 'Fitbit legacy' : 'Google Health'
+    ? status.provider === 'ultrahuman' ? 'Ultrahuman' : status.provider === 'fitbit-legacy' ? 'Fitbit legacy' : 'Google Health'
     : data.source === 'demo' ? 'Demo data' : 'Local cache'
   const pageMeta = navItems.find((item) => item.id === page) ?? navItems[0]
   const loadingSelectedDate = syncing && data.selectedDate !== selectedDate
@@ -674,12 +688,13 @@ function SettingsDialog({
   }, [open, status])
 
   const secretRequired = provider === 'google-health'
-  const providerLabel = provider === 'google-health' ? 'Google Health' : 'Fitbit legacy'
+  const isUltrahuman = provider === 'ultrahuman'
+  const providerLabel = isUltrahuman ? 'Ultrahuman' : provider === 'google-health' ? 'Google Health' : 'Fitbit legacy'
   const savedSecretMatchesProvider = status.hasClientSecret && status.provider === provider
   const canSave = status.storageEncrypted
     && clientId.trim().length > 2
     && (!secretRequired || clientSecret.trim().length > 4 || savedSecretMatchesProvider)
-    && redirectUri.startsWith('http://127.0.0.1:')
+    && (isUltrahuman ? redirectUri.includes('@') : redirectUri.startsWith('http://127.0.0.1:'))
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -695,7 +710,9 @@ function SettingsDialog({
   const openDeveloperPortal = () => {
     const url = provider === 'google-health'
       ? 'https://console.cloud.google.com/apis/library/health.googleapis.com'
-      : 'https://dev.fitbit.com/apps/new'
+      : provider === 'fitbit-legacy'
+      ? 'https://dev.fitbit.com/apps/new'
+      : 'https://partner.ultrahuman.com'
     if (window.fitbit) void window.fitbit.openExternal(url)
     else window.open(url, '_blank', 'noopener,noreferrer')
   }
@@ -727,30 +744,48 @@ function SettingsDialog({
                 <input className="sr-only" type="radio" name="health-provider" value="google-health" checked={provider === 'google-health'} onChange={() => setProvider('google-health')} />
                 <CloudIcon /><span><strong>Google Health</strong><small>API v4 · recommended</small></span>{provider === 'google-health' && <CheckIcon />}
               </label>
+              <label className={cn(provider === 'ultrahuman' && 'active')}>
+                <input className="sr-only" type="radio" name="health-provider" value="ultrahuman" checked={provider === 'ultrahuman'} onChange={() => setProvider('ultrahuman')} />
+                <DeviceIcon /><span><strong>Ultrahuman</strong><small>Ring · API key</small></span>{provider === 'ultrahuman' && <CheckIcon />}
+              </label>
               <label className={cn(provider === 'fitbit-legacy' && 'active')}>
                 <input className="sr-only" type="radio" name="health-provider" value="fitbit-legacy" checked={provider === 'fitbit-legacy'} onChange={() => setProvider('fitbit-legacy')} />
                 <DeviceIcon /><span><strong>Fitbit legacy</strong><small>Temporary compatibility</small></span>{provider === 'fitbit-legacy' && <CheckIcon />}
               </label>
             </div>
 
-            <div className="form-field">
-              <Label htmlFor="client-id">OAuth Client ID</Label>
-              <Input id="client-id" value={clientId} onChange={(event) => setClientId(event.target.value)} autoComplete="off" />
-            </div>
-            {secretRequired && (
-              <div className="form-field">
-                <Label htmlFor="client-secret">Client Secret {savedSecretMatchesProvider && <span>· leave blank to keep the current one</span>}</Label>
-                <Input id="client-secret" type="password" value={clientSecret} onChange={(event) => setClientSecret(event.target.value)} placeholder={savedSecretMatchesProvider ? '••••••••••••' : ''} autoComplete="new-password" />
-              </div>
+            {isUltrahuman ? (
+              <>
+                <div className="form-field">
+                  <Label htmlFor="client-id">API Key</Label>
+                  <Input id="client-id" value={clientId} onChange={(event) => setClientId(event.target.value)} autoComplete="off" placeholder="uh-partner-..." />
+                </div>
+                <div className="form-field">
+                  <Label htmlFor="callback-url">Email</Label>
+                  <Input id="callback-url" type="email" value={redirectUri} onChange={(event) => setRedirectUri(event.target.value)} autoComplete="email" placeholder="you@example.com" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="form-field">
+                  <Label htmlFor="client-id">OAuth Client ID</Label>
+                  <Input id="client-id" value={clientId} onChange={(event) => setClientId(event.target.value)} autoComplete="off" />
+                </div>
+                {secretRequired && (
+                  <div className="form-field">
+                    <Label htmlFor="client-secret">Client Secret {savedSecretMatchesProvider && <span>· leave blank to keep the current one</span>}</Label>
+                    <Input id="client-secret" type="password" value={clientSecret} onChange={(event) => setClientSecret(event.target.value)} placeholder={savedSecretMatchesProvider ? '••••••••••••' : ''} autoComplete="new-password" />
+                  </div>
+                )}
+                <div className="form-field">
+                  <Label htmlFor="callback-url">Callback URL</Label>
+                  <Input id="callback-url" value={redirectUri} onChange={(event) => setRedirectUri(event.target.value)} spellCheck={false} />
+                  <p>It must exactly match the URL configured in Google Cloud.</p>
+                </div>
+                <button type="button" className="portal-link" onClick={openDeveloperPortal}>Open developer console <ExternalIcon /></button>
+                <div className="scope-note"><ShieldIcon /><p>Read-only permissions for activity, heart, sleep, and authorized measurements.</p></div>
+              </>
             )}
-            <div className="form-field">
-              <Label htmlFor="callback-url">Callback URL</Label>
-              <Input id="callback-url" value={redirectUri} onChange={(event) => setRedirectUri(event.target.value)} spellCheck={false} />
-              <p>It must exactly match the URL configured in Google Cloud.</p>
-            </div>
-
-            <button type="button" className="portal-link" onClick={openDeveloperPortal}>Open developer console <ExternalIcon /></button>
-            <div className="scope-note"><ShieldIcon /><p>Read-only permissions for activity, heart, sleep, and authorized measurements.</p></div>
 
             <DialogFooter className="settings-footer">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

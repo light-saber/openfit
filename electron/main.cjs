@@ -390,6 +390,11 @@ function registerIpc() {
   })
   trustedHandle('fitbit:connect', () => {
     if (syncInFlight) throw new Error('Wait for the sync to finish before reconnecting the account.')
+    const credentials = getCredentials()
+    if (credentials.config.provider === 'ultrahuman') {
+      // Ultrahuman uses static API key — no OAuth needed, credentials already saved
+      return { ok: true }
+    }
     return startOAuthFlow()
   })
   trustedHandle('fitbit:save-ultrahuman-credentials', (input) => {
